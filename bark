@@ -1,0 +1,199 @@
+#!/bin/sh -
+
+
+readonly _command="${0##*/}"
+readonly _version='0.1.0_b1'
+
+#give you some color see see
+RED=$(printf '\033[31m')
+GREEN=$(printf '\033[32m')
+YELLOW=$(printf '\033[33m')
+BLUE=$(printf '\033[34m')
+BOLD=$(printf '\033[1m')
+DIM=$(printf '\033[2m')
+UNDER=$(printf '\033[4m')
+RESET=$(printf '\033[m')
+
+
+#when using dash, skip reading from the pipeline because the read function in dash does not support the -t option, which would cause the script to wait for user input.
+#case "$(readlink "/proc/$$/exe")" in
+#unfortunately, it can only run on linux, but i want run on ios or macos
+case "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")" in
+	dash)
+		echo "${YELLOW}Warning: pipes are not supported in \"dash\", any piped input will be ignored${RESET}" 1>&2
+	;;
+	sh)
+		if readlink "$(which sh)" | grep -q 'dash$'; then
+			echo "${YELLOW}Warning: pipes are not supported in \"dash\", any piped input will be ignored${RESET}" 1>&2
+		fi
+	;;
+	*)
+		read -t '0.01' -r _incoming
+		#echo "${_incoming}"
+	;;
+esac
+
+_get_package_version(){
+	if [ "${1}" = 'sh' ]; then
+		_command2="$(readlink "$(which sh)")"
+		_command2="${_command2##*/}"
+	else
+		_command2="${1}"
+	fi
+	if dpkg -s "${_command2}" 2>>/dev/null 1>>/dev/null; then
+		echo "${_command2}/$(dpkg -s "${_command2}" | grep '^Version: ' | sed 's#Version: ##')"
+	else
+		_command_p="$(which "${_command2}")"
+		if ! dpkg -S "${_command_p}" 2>>/dev/null 1>>/dev/null; then
+			echo "${_command2}/unknown"
+		else
+			_command_p="$(dpkg -S "${_command_p}")"
+			_command_p="${_command_p##*/}"
+			echo "${_command2}/$(dpkg -s "${_command_p}" | grep '^Version: ' | sed 's#Version: ##')"
+		fi
+	fi
+	unset _command2 _command_p
+}
+
+_user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")") ${_command}/${_version}(shell script)"
+_server='api.day.app'
+_use_request='POST'
+
+
+_print_help(){
+	echo "Usage: ${_command} [OPTIONS...]
+	-h	--help			Print this help
+	-X	--request <method>	Specify request method to use
+	-k	--key			Specify the device key to push to
+	-1	--title			Specify the title to be push
+	-2	--body			Specify the content to be push
+	-l	--level			Specify the interruption level of the push
+	-b	--badge			Specify the app badge (will overwrite the existing one)
+	-a	--autocopy		Specify whether to enable auto-copy
+	-c	--copy			Specify the content to be copied to the clipboard
+	-s	--sound			Specify the custom ringtone
+	-i	--icon			Specify the URL of the custom icon
+	-g	--group			Specify the notification group
+	-i2	--isarchive		Specify whether to save to the app
+	-u	--url			Specify the URL to jump to when clicked
+	-s2	--server		Specify the server used to forward messages
+Example:
+	${_command} -k key -1 test_title -2 test_body
+	echo 'test_body' | ${_command} -k key -1 test_title
+	${_command} GET -k key -1 test_title -2 test_body
+	echo 'test_body' | ${_command} POST -k key -1 test_title"
+}
+
+_transform_url_encoded(){
+	printf %s "${1}" | jq -s -R -r @uri
+}
+
+_GET(){
+	if [ -z "${_title}" ]; then
+		curl -X GET "https://${_server}/${1}/${_body}?$(echo "${_parameter#*</bark_20>}" | sed 's#</bark_20>#&#g')" -H "User-Agent: ${_user_agent}"
+	else
+		curl -X GET "https://${_server}/${1}/${_title}/${_body}?$(echo "${_parameter#*</bark_20>}" | sed 's#</bark_20>#&#g')" -H "User-Agent: ${_user_agent}"
+	fi
+}
+
+_POST(){
+	if [ -n "${_title}" ]; then
+		curl -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -- -s "title=${_title}" -s "body=${_body}" "$(echo "${_parameter#*</bark_20>}" | sed 's#</bark_20># #g')")"
+	else
+		curl -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -- -s "body=${_body}" "$(echo "${_parameter#*</bark_20>}" | sed 's#</bark_20># #g')")"
+	fi
+}
+
+if [ "${#}" = '0' ]; then
+	_print_help
+	exit 1
+fi
+while [ "${#}" -gt '0' ]; do
+	case "${1}" in
+		-h)
+			_print_help
+			exit 0
+		;;
+		-k|--key)
+			_key="${2}"
+			_skip_key_file_read='1'
+		;;
+		-1|--title)
+			_title="$(_transform_url_encoded "${2}")"
+		;;
+		-2|--body)
+			_body="$(_transform_url_encoded "${2}")"
+		;;
+		-l|--level)
+			_parameter="${_parameter}</bark_20>level=${2}"
+		;;
+		-b|--badge)
+			_parameter="${_parameter}</bark_20>badge=${2}"
+		;;
+		-a|--autocopy)
+			_parameter="${_parameter}</bark_20>autoCopy=${2}"
+		;;
+		-c|--copy)
+			_parameter="${_parameter}</bark_20>copy=${2}"
+		;;
+		-s|--sound)
+			_parameter="${_parameter}</bark_20>sound=${2}"
+		;;
+		-i|--icon)
+			_parameter="${_parameter}</bark_20>icon=${2}"
+		;;
+		-g|--group)
+			_parameter="${_parameter}</bark_20>group=${2}"
+		;;
+		-i2|--isarchive)
+			_parameter="${_parameter}</bark_20>isArchive=${2}"
+		;;
+		-u|--url)
+			_parameter="${_parameter}</bark_20>url=${2}"
+		;;
+		-X)
+			case "${2}" in
+				GET)
+					_use_request='GET'
+					;;
+				POST)
+					_use_request='POST'
+					;;
+				encryption)
+					_use_request='POST_encryption'
+					;;
+				*)
+					echo "${RED}Error: invalid request method${RESET}" 1>&2
+					echo 'Please use "GET", "POST" or "encryption"'
+					exit 1
+					;;
+			esac
+		;;
+		*)
+			_skip='1'
+			shift 1
+		;;
+	esac
+	if [ "${_skip}" = '1' ]; then
+		unset _skip
+	else
+		shift 2
+	fi
+done
+if [ -n "${_incoming}" ]; then
+	_body="${_incoming}"
+	unset _incoming
+fi
+case "${_use_request}" in
+	GET)
+		_GET "${_key}"
+		;;
+	POST)
+		_POST "${_key}"
+		;;
+	POST_encryption)
+		echo 'wait for update...'
+		exit 0
+		;;
+esac
+wait
