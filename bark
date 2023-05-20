@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.0_b1'
+readonly _version='0.1.0_b2'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -97,11 +97,7 @@ _GET(){
 }
 
 _POST(){
-	if [ -n "${_title}" ]; then
-		curl -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -- -s "title=${_title}" -s "body=${_body}" "$(echo "${_parameter#*</bark_20>}" | sed 's#</bark_20># #g')")"
-	else
-		curl -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -- -s "body=${_body}" "$(echo "${_parameter#*</bark_20>}" | sed 's#</bark_20># #g')")"
-	fi
+	curl -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
 }
 
 if [ "${#}" = '0' ]; then
@@ -125,31 +121,43 @@ while [ "${#}" -gt '0' ]; do
 			_body="$(_transform_url_encoded "${2}")"
 		;;
 		-l|--level)
+			_level="${2}"
 			_parameter="${_parameter}</bark_20>level=${2}"
 		;;
 		-b|--badge)
+			_badge="${2}"
 			_parameter="${_parameter}</bark_20>badge=${2}"
 		;;
 		-a|--autocopy)
+			_autocopy="${2}"
 			_parameter="${_parameter}</bark_20>autoCopy=${2}"
 		;;
 		-c|--copy)
+			_copy="${2}"
 			_parameter="${_parameter}</bark_20>copy=${2}"
 		;;
 		-s|--sound)
+			_sound="${2}"
 			_parameter="${_parameter}</bark_20>sound=${2}"
 		;;
 		-i|--icon)
+			_icon="${2}"
 			_parameter="${_parameter}</bark_20>icon=${2}"
 		;;
 		-g|--group)
+			_group="${2}"
 			_parameter="${_parameter}</bark_20>group=${2}"
 		;;
 		-i2|--isarchive)
+			_isarchive="${2}"
 			_parameter="${_parameter}</bark_20>isArchive=${2}"
 		;;
 		-u|--url)
+			_url="${2}"
 			_parameter="${_parameter}</bark_20>url=${2}"
+		;;
+		-s2|--server)
+			_server="${2}"
 		;;
 		-X)
 			case "${2}" in
