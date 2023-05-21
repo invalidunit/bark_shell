@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.0_b6'
+readonly _version='0.1.0'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -65,25 +65,34 @@ _get_package_version(){
 _user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")") ${_command}/${_version}(shell script)"
 _server='api.day.app'
 _use_request='POST'
+#The default encryption in Bark App is like this, copy it first
+_encryption_algorithm='aes128'
+_encryption_mode='cbc'
+_encryption_padding='pkcs7'
 
 
 _print_help(){
 	echo "Usage: ${_command} [OPTIONS...]
-	-h	--help			Print this help
-	-X	--request <method>	Specify request method to use
-	-k	--key			Specify the device key to push to
-	-1	--title			Specify the title to be push
-	-2	--body			Specify the content to be push
-	-l	--level			Specify the interruption level of the push
-	-b	--badge			Specify the app badge (will overwrite the existing one)
-	-a	--autocopy		Specify whether to enable auto-copy
-	-c	--copy			Specify the content to be copied to the clipboard
-	-s	--sound			Specify the custom ringtone
-	-i	--icon			Specify the URL of the custom icon
-	-g	--group			Specify the notification group
-	-i2	--isarchive		Specify whether to save to the app
-	-u	--url			Specify the URL to jump to when clicked
-	-s2	--server		Specify the server used to forward messages
+	-h	--help				Print this help
+	-X	--request <method>		Specify request method to use
+	-k	--key				Specify the device key to push to
+	-1	--title				Specify the title to be push
+	-2	--body				Specify the content to be push
+	-l	--level				Specify the interruption level of the push
+	-b	--badge				Specify the app badge (will overwrite the existing one)
+	-a	--autocopy			Specify whether to enable auto-copy
+	-c	--copy				Specify the content to be copied to the clipboard
+	-s	--sound				Specify the custom ringtone
+	-i	--icon				Specify the URL of the custom icon
+	-g	--group				Specify the notification group
+	-i2	--isarchive			Specify whether to save to the app
+	-u	--url				Specify the URL to jump to when clicked
+	-s2	--server			Specify the server used to forward messages
+	-ea	--encryption-algorithm		Specify the algorithm used during encryption <AES128/AES192/AES256>
+	-em	--encryption-mode		Specify the mode used during the encryption process <CBC/ECB>
+	-ep	--encryption-padding		Specify the padding used during encryption process <pkcs7>
+	-ek	--encryption-key		Specify the key used for encryption
+	-ei	--encryption-iv			Specify the iv used for encryption
 Example:
 	${_command} -k key -1 test_title -2 test_body
 	echo 'test_body' | ${_command} -k key -1 test_title
@@ -104,6 +113,10 @@ _GET(){
 
 _POST(){
 	curl -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+}
+
+_encryption(){
+	curl --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64)" "http://${_server}/${1}"
 }
 
 if [ "${#}" = '0' ]; then
@@ -165,6 +178,55 @@ while [ "${#}" -gt '0' ]; do
 		-s2|--server)
 			_server="${2}"
 		;;
+		-ea|--encryption-algorithm)
+			case "${2}" in
+				AES128|aes128|128)
+					_encryption_algorithm='aes-128'
+					;;
+				AES192|aes192|192)
+					_encryption_algorithm='aes-192'
+					;;
+				AES256|aes256|256)
+					_encryption_algorithm='aes-256'
+					;;
+				*)
+					echo "${RED}Error: invalid encryption algorithm${RESET}" 1>&2
+					exit 1
+					;;
+			esac
+		;;
+		-em|--encryption-mode)
+			case "${2}" in
+				CBC|cbc)
+					_encryption_mode='cbc'
+					;;
+				ECB|ecb)
+					_encryption_mode='ecb'
+					;;
+				*)
+					echo "${RED}Error: invalid encryption mode${RESET}" 1>&2
+					exit 1
+					;;
+			esac
+		;;
+		-ep|--encryption-padding)
+			#But it seems only pkcs7? Generally, this variable can be skipped directly or not, it should be okay
+			case "${2}" in
+				pkcs7)
+					_encryption_padding='pkcs7'
+					;;
+				*)
+					echo "${RED}Error: invalid encryption padding${RESET}" 1>&2
+					exit 1
+					;;
+			esac
+		;;
+		-ek|--encryption-key)
+			_encryption_key="${2}"
+		;;
+		-ei|--encryption-iv)
+			_encryption_iv="${2}"
+		;;
 		-X)
 			case "${2}" in
 				GET)
@@ -206,8 +268,7 @@ case "${_use_request}" in
 		_POST "${_key}" &
 		;;
 	POST_encryption)
-		echo 'wait for update...'
-		exit 0
+		_encryption "${_key}" &
 		;;
 esac
 wait
