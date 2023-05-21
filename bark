@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.0_b3'
+readonly _version='0.1.0_b4'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -188,7 +188,7 @@ while [ "${#}" -gt '0' ]; do
 	fi
 done
 if [ -n "${_incoming}" ]; then
-	_body="${_incoming}"
+	_body="$(_transform_url_encoded "${_incoming}")"
 	unset _incoming
 fi
 case "${_use_request}" in
