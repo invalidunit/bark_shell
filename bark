@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.0_b5'
+readonly _version='0.1.0_b6'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -28,11 +28,13 @@ case "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")" in
 		fi
 	;;
 	*)
-		read -t 0.01 -d $'\0' -r _incoming
+		read -t '0.01' -d $'\0' -r _incoming
 		#echo "${_incoming}"
 	;;
 esac
 
+#I only wrote the APT method to get the version number, but I didn't use other system.
+#emmmmmmmm
 _get_package_version(){
 	if [ "${1}" = 'sh' ]; then
 		_command2="$(readlink "$(which sh)")"
@@ -40,17 +42,22 @@ _get_package_version(){
 	else
 		_command2="${1}"
 	fi
-	if dpkg -s "${_command2}" 2>>/dev/null 1>>/dev/null; then
-		echo "${_command2}/$(dpkg -s "${_command2}" | grep '^Version: ' | sed 's#Version: ##')"
-	else
-		_command_p="$(which "${_command2}")"
-		if ! dpkg -S "${_command_p}" 2>>/dev/null 1>>/dev/null; then
-			echo "${_command2}/unknown"
+	#If it is not Debian, return the unknown version directly
+	if which dpkg 2>>/dev/null 1>>/dev/null; then
+		if dpkg -s "${_command2}" 2>>/dev/null 1>>/dev/null; then
+			echo "${_command2}/$(dpkg -s "${_command2}" | grep '^Version: ' | sed 's#Version: ##')"
 		else
-			_command_p="$(dpkg -S "${_command_p}")"
-			_command_p="${_command_p##*/}"
-			echo "${_command2}/$(dpkg -s "${_command_p}" | grep '^Version: ' | sed 's#Version: ##')"
+			_command_p="$(which "${_command2}")"
+			if ! dpkg -S "${_command_p}" 2>>/dev/null 1>>/dev/null; then
+				echo "${_command2}/unknown"
+			else
+				_command_p="$(dpkg -S "${_command_p}")"
+				_command_p="${_command_p##*/}"
+				echo "${_command2}/$(dpkg -s "${_command_p}" | grep '^Version: ' | sed 's#Version: ##')"
+			fi
 		fi
+	else
+		echo "${_command2}/unknown"
 	fi
 	unset _command2 _command_p
 }
