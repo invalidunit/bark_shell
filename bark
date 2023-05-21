@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.0_b2'
+readonly _version='0.1.0_b3'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -89,11 +89,10 @@ _transform_url_encoded(){
 }
 
 _GET(){
-	if [ -z "${_title}" ]; then
-		curl -X GET "https://${_server}/${1}/${_body}?$(echo "${_parameter#*</bark_20>}" | sed 's#</bark_20>#&#g')" -H "User-Agent: ${_user_agent}"
-	else
-		curl -X GET "https://${_server}/${1}/${_title}/${_body}?$(echo "${_parameter#*</bark_20>}" | sed 's#</bark_20>#&#g')" -H "User-Agent: ${_user_agent}"
+	if [ -n "${_title}" ]; then
+		_title="${_title}/"
 	fi
+	curl -X GET "https://${_server}/${1}/${_title}${_body}$(echo "${_parameter}" | sed 's#^&#?#g')" -H "User-Agent: ${_user_agent}"
 }
 
 _POST(){
@@ -122,39 +121,39 @@ while [ "${#}" -gt '0' ]; do
 		;;
 		-l|--level)
 			_level="${2}"
-			_parameter="${_parameter}</bark_20>level=${2}"
+			_parameter="${_parameter}&level=${2}"
 		;;
 		-b|--badge)
 			_badge="${2}"
-			_parameter="${_parameter}</bark_20>badge=${2}"
+			_parameter="${_parameter}&badge=${2}"
 		;;
 		-a|--autocopy)
 			_autocopy="${2}"
-			_parameter="${_parameter}</bark_20>autoCopy=${2}"
+			_parameter="${_parameter}&autoCopy=${2}"
 		;;
 		-c|--copy)
 			_copy="${2}"
-			_parameter="${_parameter}</bark_20>copy=${2}"
+			_parameter="${_parameter}&copy=${2}"
 		;;
 		-s|--sound)
 			_sound="${2}"
-			_parameter="${_parameter}</bark_20>sound=${2}"
+			_parameter="${_parameter}&sound=${2}"
 		;;
 		-i|--icon)
 			_icon="${2}"
-			_parameter="${_parameter}</bark_20>icon=${2}"
+			_parameter="${_parameter}&icon=$(_transform_url_encoded "${2}")"
 		;;
 		-g|--group)
 			_group="${2}"
-			_parameter="${_parameter}</bark_20>group=${2}"
+			_parameter="${_parameter}&group=${2}"
 		;;
 		-i2|--isarchive)
 			_isarchive="${2}"
-			_parameter="${_parameter}</bark_20>isArchive=${2}"
+			_parameter="${_parameter}&isArchive=${2}"
 		;;
 		-u|--url)
 			_url="${2}"
-			_parameter="${_parameter}</bark_20>url=${2}"
+			_parameter="${_parameter}&url=${2}"
 		;;
 		-s2|--server)
 			_server="${2}"
@@ -194,10 +193,10 @@ if [ -n "${_incoming}" ]; then
 fi
 case "${_use_request}" in
 	GET)
-		_GET "${_key}"
+		_GET "${_key}" &
 		;;
 	POST)
-		_POST "${_key}"
+		_POST "${_key}" &
 		;;
 	POST_encryption)
 		echo 'wait for update...'
