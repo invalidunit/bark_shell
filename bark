@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.0'
+readonly _version='0.1.1'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -66,7 +66,7 @@ _user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_packa
 _server='api.day.app'
 _use_request='POST'
 #The default encryption in Bark App is like this, copy it first
-_encryption_algorithm='aes128'
+_encryption_algorithm='aes-128'
 _encryption_mode='cbc'
 _encryption_padding='pkcs7'
 
@@ -108,7 +108,7 @@ _GET(){
 	if [ -n "${_title}" ]; then
 		_title="${_title}/"
 	fi
-	curl -X GET "https://${_server}/${1}/${_title}${_body}$(echo "${_parameter}" | sed 's#^&#?#g')" -H "User-Agent: ${_user_agent}"
+	curl -X GET "https://${_server}/${1}/${_title}${_body}$(echo "${_parameter}" | sed 's#^&#?#')" -H "User-Agent: ${_user_agent}"
 }
 
 _POST(){
