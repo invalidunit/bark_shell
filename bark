@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.0_b4'
+readonly _version='0.1.0_b5'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -28,7 +28,7 @@ case "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")" in
 		fi
 	;;
 	*)
-		read -t '0.01' -r _incoming
+		read -t 0.01 -d $'\0' -r _incoming
 		#echo "${_incoming}"
 	;;
 esac
