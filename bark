@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.1'
+readonly _version='0.1.2'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -106,8 +106,9 @@ _transform_url_encoded(){
 
 _GET(){
 	if [ -n "${_title}" ]; then
-		_title="${_title}/"
+		_title="$(_transform_url_encoded "${_title}")/"
 	fi
+	_body="$(_transform_url_encoded "${_body}")"
 	curl -X GET "https://${_server}/${1}/${_title}${_body}$(echo "${_parameter}" | sed 's#^&#?#')" -H "User-Agent: ${_user_agent}"
 }
 
@@ -134,10 +135,10 @@ while [ "${#}" -gt '0' ]; do
 			_skip_key_file_read='1'
 		;;
 		-1|--title)
-			_title="$(_transform_url_encoded "${2}")"
+			_title="${2}"
 		;;
 		-2|--body)
-			_body="$(_transform_url_encoded "${2}")"
+			_body="${2}"
 		;;
 		-l|--level)
 			_level="${2}"
