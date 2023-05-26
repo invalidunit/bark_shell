@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.5'
+readonly _version='0.1.5-1'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -71,7 +71,6 @@ _get_package_version(){
 _user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")") ${_command}/${_version}(shell script)"
 _server='api.day.app'
 _use_request='POST'
-_key_quantity='0'
 #The default encryption in Bark App is like this, copy it first
 _encryption_algorithm='aes-128'
 _encryption_mode='cbc'
@@ -140,7 +139,6 @@ while [ "${#}" -gt '0' ]; do
 		-k|--key)
 			_keys="${_keys}${2}
 "
-			_key_quantity="$((_key_quantity+1))"
 		;;
 		-1|--title)
 			_title="${2}"
