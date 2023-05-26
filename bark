@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.4-1'
+readonly _version='0.1.5'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -71,6 +71,7 @@ _get_package_version(){
 _user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")") ${_command}/${_version}(shell script)"
 _server='api.day.app'
 _use_request='POST'
+_key_quantity='0'
 #The default encryption in Bark App is like this, copy it first
 _encryption_algorithm='aes-128'
 _encryption_mode='cbc'
@@ -115,15 +116,15 @@ _GET(){
 		_title="$(_transform_url_encoded "${_title}")/"
 	fi
 	_body="$(_transform_url_encoded "${_body}")"
-	curl -X GET "https://${_server}/${1}/${_title}${_body}$(echo "${_parameter}" | sed 's#^&#?#')" -H "User-Agent: ${_user_agent}"
+	echo "${2}: $(curl -s -X GET "https://${_server}/${1}/${_title}${_body}$(echo "${_parameter}" | sed 's#^&#?#')" -H "User-Agent: ${_user_agent}")"
 }
 
 _POST(){
-	curl -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+	echo "${2}: $(curl -s -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")")"
 }
 
 _encryption(){
-	curl --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64)" "http://${_server}/${1}"
+	echo "${2}: $(curl -s --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64)" "http://${_server}/${1}")"
 }
 
 if [ "${#}" = '0' ]; then
@@ -137,8 +138,9 @@ while [ "${#}" -gt '0' ]; do
 			exit 0
 		;;
 		-k|--key)
-			_key="${2}"
-			_skip_key_file_read='1'
+			_keys="${_keys}${2}
+"
+			_key_quantity="$((_key_quantity+1))"
 		;;
 		-1|--title)
 			_title="${2}"
@@ -267,15 +269,26 @@ if [ -n "${_incoming}" ]; then
 	_body="${_incoming}"
 	unset _incoming
 fi
-case "${_use_request}" in
-	GET)
-		_GET "${_key}" &
-		;;
-	POST)
-		_POST "${_key}" &
-		;;
-	POST_encryption)
-		_encryption "${_key}" &
-		;;
-esac
+i='1'
+i_max="$(echo "${_keys}" | wc -l)"
+i_max="$((i_max-1))"
+while [ "${i}" -le "${i_max}" ]; do
+	_key="$(echo "${_keys}" | sed -n "${i}p")"
+	_key_first="$(expr substr "${_key}" 1 4)"
+	_key_last="$(echo "${_key}" | tail -c 5)"
+	_key2="${_key_first}xxxx${_key_last}"
+	case "${_use_request}" in
+		GET)
+			_GET "${_key}" "${_key2}" &
+			;;
+		POST)
+			_POST "${_key}" "${_key2}" &
+			;;
+		POST_encryption)
+			_encryption "${_key}" "${_key2}" &
+			;;
+	esac
+	unset _key_first _key_last _key_middle _key _key2
+	i="$((i+1))"
+done
 wait
