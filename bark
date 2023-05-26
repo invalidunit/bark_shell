@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.2'
+readonly _version='0.1.3'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -15,23 +15,28 @@ UNDER=$(printf '\033[4m')
 RESET=$(printf '\033[m')
 
 
-#when using dash, skip reading from the pipeline because the read function in dash does not support the -t option, which would cause the script to wait for user input.
-#case "$(readlink "/proc/$$/exe")" in
-#unfortunately, it can only run on linux, but i want run on ios or macos
-case "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")" in
-	dash)
-		echo "${YELLOW}Warning: pipes are not supported in \"dash\", any piped input will be ignored${RESET}" 1>&2
-	;;
-	sh)
-		if readlink "$(which sh)" | grep -q 'dash$'; then
-			echo "${YELLOW}Warning: pipes are not supported in \"dash\", any piped input will be ignored${RESET}" 1>&2
-		fi
-	;;
-	*)
-		read -t '0.01' -d $'\0' -r _incoming
-		#echo "${_incoming}"
-	;;
-esac
+if [ ! -t 0 ]; then
+	#when using dash, skip reading from the pipeline because the read function in dash does not support the -t option, which would cause the script to wait for user input.
+	#case "$(readlink "/proc/$$/exe")" in
+	#unfortunately, it can only run on linux, but i want run on ios or macos
+	case "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")" in
+		dash)
+			while IFS= read -r line || [ -n "$line" ]; do
+				_incoming="$_incoming$line"'\n'
+			done
+		;;
+		sh)
+			if readlink "$(which sh)" | grep -q 'dash$'; then
+				while IFS= read -r line || [ -n "$line" ]; do
+					_incoming="$_incoming$line"'\n'
+				done
+			fi
+		;;
+		*)
+			read -d $'\0' -r _incoming
+		;;
+	esac
+fi
 
 #I only wrote the APT method to get the version number, but I didn't use other system.
 #emmmmmmmm
@@ -96,8 +101,8 @@ _print_help(){
 Example:
 	${_command} -k key -1 test_title -2 test_body
 	echo 'test_body' | ${_command} -k key -1 test_title
-	${_command} GET -k key -1 test_title -2 test_body
-	echo 'test_body' | ${_command} POST -k key -1 test_title"
+	${_command} -X GET -k key -1 test_title -2 test_body
+	echo 'test_body' | ${_command} -X POST -k key -1 test_title"
 }
 
 _transform_url_encoded(){
@@ -258,7 +263,7 @@ while [ "${#}" -gt '0' ]; do
 	fi
 done
 if [ -n "${_incoming}" ]; then
-	_body="$(_transform_url_encoded "${_incoming}")"
+	_body="${_incoming}"
 	unset _incoming
 fi
 case "${_use_request}" in
