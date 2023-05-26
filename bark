@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.4'
+readonly _version='0.1.4-1'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -16,7 +16,6 @@ RESET=$(printf '\033[m')
 
 
 if [ ! -t 0 ]; then
-	#when using dash, skip reading from the pipeline because the read function in dash does not support the -t option, which would cause the script to wait for user input.
 	#case "$(readlink "/proc/$$/exe")" in
 	#unfortunately, it can only run on linux, but i want run on ios or macos
 	case "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")" in
