@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.6'
+readonly _version='0.1.6-1'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -279,7 +279,7 @@ for _key in ${_keys}; do
 	_key2="${_key_first}xxxx${_key_last}"
 	case "${_use_request}" in
 		GET)
-			echo _GET "${_key}" "${_key2}" &
+			_GET "${_key}" "${_key2}" &
 			;;
 		POST)
 			_POST "${_key}" "${_key2}" &
