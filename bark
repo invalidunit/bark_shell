@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.6-1'
+readonly _version='0.1.6-2'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -290,3 +290,4 @@ for _key in ${_keys}; do
 	esac
 	unset _key_first _key_last _key_middle _key _key2
 done
+wait
