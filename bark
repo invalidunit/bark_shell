@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.5-1'
+readonly _version='0.1.6'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -69,9 +69,9 @@ _get_package_version(){
 }
 
 _user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")") ${_command}/${_version}(shell script)"
-_server='api.day.app'
-_use_request='POST'
 #The default encryption in Bark App is like this, copy it first
+_server='api.day.app'
+_use_request='GET'
 _encryption_algorithm='aes-128'
 _encryption_mode='cbc'
 _encryption_padding='pkcs7'
@@ -137,8 +137,11 @@ while [ "${#}" -gt '0' ]; do
 			exit 0
 		;;
 		-k|--key)
-			_keys="${_keys}${2}
-"
+			if [ -z "${_keys}" ]; then
+				_keys="${2}"
+			else
+				_keys="${_keys} ${2}"
+			fi
 		;;
 		-1|--title)
 			_title="${2}"
@@ -267,17 +270,16 @@ if [ -n "${_incoming}" ]; then
 	_body="${_incoming}"
 	unset _incoming
 fi
-i='1'
-i_max="$(echo "${_keys}" | wc -l)"
-i_max="$((i_max-1))"
-while [ "${i}" -le "${i_max}" ]; do
-	_key="$(echo "${_keys}" | sed -n "${i}p")"
+if [ -n "${ZSH_VERSION:-}" ]; then
+	setopt shwordsplit
+fi
+for _key in ${_keys}; do
 	_key_first="$(expr substr "${_key}" 1 4)"
 	_key_last="$(echo "${_key}" | tail -c 5)"
 	_key2="${_key_first}xxxx${_key_last}"
 	case "${_use_request}" in
 		GET)
-			_GET "${_key}" "${_key2}" &
+			echo _GET "${_key}" "${_key2}" &
 			;;
 		POST)
 			_POST "${_key}" "${_key2}" &
@@ -287,6 +289,4 @@ while [ "${i}" -le "${i_max}" ]; do
 			;;
 	esac
 	unset _key_first _key_last _key_middle _key _key2
-	i="$((i+1))"
 done
-wait
