@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.6-2'
+readonly _version='0.1.7'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -31,6 +31,8 @@ if [ ! -t 0 ]; then
 					_incoming="$_incoming$line"'\n'
 				done
 				_incoming="$(printf '%b\n' "${_incoming}")"
+			else
+				read -d $'\0' -r _incoming
 			fi
 		;;
 		*)
