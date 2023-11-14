@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.7'
+readonly _version='0.1.8'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -15,10 +15,16 @@ UNDER=$(printf '\033[4m')
 RESET=$(printf '\033[m')
 
 
+if [ -d '/proc/' ]; then
+	#openwrt not have ps -p
+	_now_sh="$(readlink "/proc/$$/exe")"
+	_now_sh="${_now_sh##*/}"
+else
+	#ios and macos not have "/proc/"
+	_now_sh="$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")"
+fi
 if [ ! -t 0 ]; then
-	#case "$(readlink "/proc/$$/exe")" in
-	#unfortunately, it can only run on linux, but i want run on ios or macos
-	case "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")" in
+	case "${_now_sh}" in
 		dash)
 			while IFS= read -r line || [ -n "$line" ]; do
 				_incoming="$_incoming$line"'\n'
@@ -70,7 +76,7 @@ _get_package_version(){
 	unset _command2 _command_p
 }
 
-_user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "$(basename "$(echo "$(ps -p $$ -o command=)" | awk '{print $1}')")") ${_command}/${_version}(shell script)"
+_user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "${_now_sh}") ${_command}/${_version}(shell script)"
 #The default encryption in Bark App is like this, copy it first
 _server='api.day.app'
 _use_request='GET'
