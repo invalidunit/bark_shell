@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.8'
+readonly _version='0.1.9'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -45,6 +45,9 @@ if [ ! -t 0 ]; then
 			read -d $'\0' -r _incoming
 		;;
 	esac
+fi
+if base64 --help 2>&1 | grep -q '\-w'; then
+	alias base64="base64 -w 0"
 fi
 
 #I only wrote the APT method to get the version number, but I didn't use other system.
