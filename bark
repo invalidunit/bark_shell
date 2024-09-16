@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.1.9'
+readonly _version='0.2.0'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -46,9 +46,6 @@ if [ ! -t 0 ]; then
 		;;
 	esac
 fi
-if base64 --help 2>&1 | grep -q '\-w'; then
-	alias base64="base64 -w 0"
-fi
 
 #I only wrote the APT method to get the version number, but I didn't use other system.
 #emmmmmmmm
@@ -80,9 +77,14 @@ _get_package_version(){
 }
 
 _user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "${_now_sh}") ${_command}/${_version}(shell script)"
+#If jo is installed on the device, POST is used by default, otherwise it falls back to GET
+if which jo 2>>/dev/null 1>>/dev/null; then
+	_use_request='POST'
+else
+	_use_request='GET'
+fi
 #The default encryption in Bark App is like this, copy it first
 _server='api.day.app'
-_use_request='GET'
 _encryption_algorithm='aes-128'
 _encryption_mode='cbc'
 _encryption_padding='pkcs7'
@@ -90,26 +92,27 @@ _encryption_padding='pkcs7'
 
 _print_help(){
 	echo "Usage: ${_command} [OPTIONS...]
-	-h	--help				Print this help
-	-X	--request <method>		Specify request method to use
-	-k	--key				Specify the device key to push to
-	-1	--title				Specify the title to be push
-	-2	--body				Specify the content to be push
-	-l	--level				Specify the interruption level of the push
-	-b	--badge				Specify the app badge (will overwrite the existing one)
-	-a	--autocopy			Specify whether to enable auto-copy
-	-c	--copy				Specify the content to be copied to the clipboard
-	-s	--sound				Specify the custom ringtone
-	-i	--icon				Specify the URL of the custom icon
-	-g	--group				Specify the notification group
-	-i2	--isarchive			Specify whether to save to the app
-	-u	--url				Specify the URL to jump to when clicked
-	-s2	--server			Specify the server used to forward messages
-	-ea	--encryption-algorithm		Specify the algorithm used during encryption <AES128/AES192/AES256>
-	-em	--encryption-mode		Specify the mode used during the encryption process <CBC/ECB>
-	-ep	--encryption-padding		Specify the padding used during encryption process <pkcs7>
-	-ek	--encryption-key		Specify the key used for encryption
-	-ei	--encryption-iv			Specify the iv used for encryption
+	-h   --help						Print this help
+	-X   --request <GET/POST/encryption>			Specify request method to use
+	-k   --key <bark_key>					Specify the device key to push to
+	-1   --title <title>					Specify the title to be push
+	-2   --body <body>					Specify the content to be push
+	-l   --level <active/timeSensitive/passive>		Specify the interruption level of the push
+	-b   --badge <number>					Specify the app badge (will overwrite the existing one)
+	-a   --autocopy <0/1>					Specify whether to enable auto-copy
+	-c   --copy <string>					Specify the content to be copied to the clipboard
+	-c2  --call <0/1>					Specify continuous ringing when sending push notifications
+	-s   --sound <string>					Specify the custom ringtone
+	-i   --icon <url>					Specify the URL of the custom icon
+	-g   --group <string>					Specify the notification group
+	-i2  --isarchive <0/1>					Specify whether to save to the app
+	-u   --url <url>					Specify the URL to jump to when clicked
+	-s2  --server <domain_name>				Specify the server used to forward messages
+	-ea  --encryption-algorithm <AES128/AES192/AES256>	Specify the algorithm used during encryption <AES128/AES192/AES256>
+	-em  --encryption-mode <CBC/ECB>			Specify the mode used during the encryption process <CBC/ECB>
+	-ep  --encryption-padding <pkcs7>			Specify the padding used during encryption process <pkcs7>
+	-ek  --encryption-key <key>				Specify the key used for encryption
+	-ei  --encryption-iv <iv>				Specify the iv used for encryption
 Example:
 	${_command} -k key -1 test_title -2 test_body
 	echo 'test_body' | ${_command} -k key -1 test_title
@@ -126,15 +129,15 @@ _GET(){
 		_title="$(_transform_url_encoded "${_title}")/"
 	fi
 	_body="$(_transform_url_encoded "${_body}")"
-	echo "${2}: $(curl -s -X GET "https://${_server}/${1}/${_title}${_body}$(echo "${_parameter}" | sed 's#^&#?#')" -H "User-Agent: ${_user_agent}")"
+	curl -s -L -X GET "https://${_server}/${1}/${_title}${_body}$(echo "${_parameter}" | sed 's#^&#?#')" -H "User-Agent: ${_user_agent}"
 }
 
 _POST(){
-	echo "${2}: $(curl -s -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")")"
+	curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
 }
 
 _encryption(){
-	echo "${2}: $(curl -s --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64)" "http://${_server}/${1}")"
+	curl -s -L --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')" "http://${_server}/${1}"
 }
 
 if [ "${#}" = '0' ]; then
@@ -148,11 +151,7 @@ while [ "${#}" -gt '0' ]; do
 			exit 0
 		;;
 		-k|--key)
-			if [ -z "${_keys}" ]; then
-				_keys="${2}"
-			else
-				_keys="${_keys} ${2}"
-			fi
+			_keys="${_keys},${2}"
 		;;
 		-1|--title)
 			_title="${2}"
@@ -175,6 +174,10 @@ while [ "${#}" -gt '0' ]; do
 		-c|--copy)
 			_copy="${2}"
 			_parameter="${_parameter}&copy=${2}"
+		;;
+		-c2|--call)
+			_call="${2}"
+			_parameter="${_parameter}&call=${2}"
 		;;
 		-s|--sound)
 			_sound="${2}"
@@ -281,24 +284,44 @@ if [ -n "${_incoming}" ]; then
 	_body="${_incoming}"
 	unset _incoming
 fi
-if [ -n "${ZSH_VERSION:-}" ]; then
-	setopt shwordsplit
-fi
-for _key in ${_keys}; do
-	_key_first="$(expr substr "${_key}" 1 4)"
-	_key_last="$(echo "${_key}" | tail -c 5)"
-	_key2="${_key_first}xxxx${_key_last}"
-	case "${_use_request}" in
-		GET)
-			_GET "${_key}" "${_key2}" &
-			;;
-		POST)
-			_POST "${_key}" "${_key2}" &
-			;;
-		POST_encryption)
-			_encryption "${_key}" "${_key2}" &
-			;;
-	esac
-	unset _key_first _key_last _key_middle _key _key2
-done
-wait
+i='1'
+i_max="$(echo "${_keys}" | grep -o ',' | wc -l)"
+case "${i_max}" in
+	0)
+		echo "${RED}Error: No key was passed in...${RESET}"
+		exit 1
+		;;
+	1)
+		_key="${_keys#\,}"
+		case "${_use_request}" in
+			GET)
+				_GET "${_key}"
+				;;
+			POST)
+				_POST "${_key}"
+				;;
+			POST_encryption)
+				_encryption "${_key}"
+				;;
+		esac
+		;;
+	*)
+		while [ "${i}" -le "${i_max}" ]; do
+			_key="$(echo "${_keys}" | awk -v i="$((i+1))" -F ',' '{print $i}')"
+			case "${_use_request}" in
+				GET)
+					echo "$(expr substr "${_key}" 1 4)xxxx$(echo "${_key}" | tail -c 5): $(_GET "${_key}")" &
+					;;
+				POST)
+					echo "$(expr substr "${_key}" 1 4)xxxx$(echo "${_key}" | tail -c 5): $(_POST "${_key}")" &
+					;;
+				POST_encryption)
+					echo "$(expr substr "${_key}" 1 4)xxxx$(echo "${_key}" | tail -c 5): $(_encryption "${_key}")" &
+					;;
+			esac
+			unset _key
+			i="$((i+1))"
+		done
+		wait
+		;;
+esac
