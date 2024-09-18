@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.2.1'
+readonly _version='0.2.2'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -133,7 +133,7 @@ _GET(){
 }
 
 _POST(){
-	curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -n "copy=${_copy}" -s "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+	curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
 }
 
 _encryption(){
