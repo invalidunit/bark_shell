@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.2.4'
+readonly _version='0.2.5'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -152,7 +152,6 @@ _encryption(){
 	if [ -z "${_need_send_iv}" ]; then
 		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
 	else
-		echo "iv: ${_encryption_iv}"
 		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')" --data-urlencode "iv=${_encryption_iv}"
 	fi
 }
