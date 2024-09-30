@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.2.6'
+readonly _version='0.2.7'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -78,7 +78,7 @@ _get_package_version(){
 
 _user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "${_now_sh}") ${_command}/${_version}(shell script)"
 #need to install jo to build json
-if which jo 2>>/dev/null 1>>/dev/null; then
+if ! which jo 2>>/dev/null 1>>/dev/null; then
 	_not_use_json='1'
 fi
 #The default encryption in Bark App is like this, copy it first
