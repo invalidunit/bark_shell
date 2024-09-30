@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.2.2'
+readonly _version='0.2.3'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -59,7 +59,7 @@ _get_package_version(){
 	#If it is not Debian, return the unknown version directly
 	if which dpkg 2>>/dev/null 1>>/dev/null; then
 		if dpkg -s "${_command2}" 2>>/dev/null 1>>/dev/null; then
-			echo "${_command2}/$(dpkg -s "${_command2}" | grep '^Version: ' | sed 's#Version: ##')"
+			echo "${_command2}/$(dpkg -s "${_command2}" | grep '^Version: ' | sed 's#^Version: ##')"
 		else
 			_command_p="$(which "${_command2}")"
 			if ! dpkg -S "${_command_p}" 2>>/dev/null 1>>/dev/null; then
@@ -67,7 +67,7 @@ _get_package_version(){
 			else
 				_command_p="$(dpkg -S "${_command_p}")"
 				_command_p="${_command_p##*/}"
-				echo "${_command2}/$(dpkg -s "${_command_p}" | grep '^Version: ' | sed 's#Version: ##')"
+				echo "${_command2}/$(dpkg -s "${_command_p}" | grep '^Version: ' | sed 's#^Version: ##')"
 			fi
 		fi
 	else
@@ -137,7 +137,7 @@ _POST(){
 }
 
 _encryption(){
-	curl -s -L -X POST "http://${_server}/${1}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
+	curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
 }
 
 if [ "${#}" = '0' ]; then
