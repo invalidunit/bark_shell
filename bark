@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.2.5'
+readonly _version='0.2.6'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -77,11 +77,9 @@ _get_package_version(){
 }
 
 _user_agent="$(_get_package_version 'curl') $(uname -s)/$(uname -r) $(_get_package_version "${_now_sh}") ${_command}/${_version}(shell script)"
-#If jo is installed on the device, POST is used by default, otherwise it falls back to GET
+#need to install jo to build json
 if which jo 2>>/dev/null 1>>/dev/null; then
-	_use_request='POST'
-else
-	_use_request='GET'
+	_not_use_json='1'
 fi
 #The default encryption in Bark App is like this, copy it first
 _server='api.day.app'
@@ -113,6 +111,7 @@ _print_help(){
 	-ep  --encryption-padding <pkcs7>			Specify the padding used during encryption process <pkcs7>
 	-ek  --encryption-key <key>				Specify the key used for encryption
 	-ei  --encryption-iv <iv>				Specify the iv used for encryption
+	--not-use-json						Specifies not use json when use POST
 Example:
 	${_command} -k key -1 test_title -2 test_body
 	echo 'test_body' | ${_command} -k key -1 test_title
@@ -141,18 +140,24 @@ _GET(){
 }
 
 _POST(){
-	curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+	if [ -z "${_not_use_json}" ]; then
+		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+	else
+		if [ -n "${_title}" ]; then
+			_parameter="title=$(_transform_url_encoded "${_title}")&body=$(_transform_url_encoded "${_body}")${_parameter}"
+		else
+			_parameter="body=$(_transform_url_encoded "${_body}")${_parameter}"
+		fi
+		curl -s -L -X POST "https://${_server}/${1}" -d "${_parameter}" -H "User-Agent: ${_user_agent}"
+	fi
 }
 
 _encryption(){
 	if [ -z "${_encryption_iv}" ]; then
 		_encryption_iv="$(_randnum '16')"
-		_need_send_iv='1'
-	fi
-	if [ -z "${_need_send_iv}" ]; then
-		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
-	else
 		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')" --data-urlencode "iv=${_encryption_iv}"
+	else
+		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
 	fi
 }
 
@@ -284,6 +289,11 @@ while [ "${#}" -gt '0' ]; do
 					exit 1
 					;;
 			esac
+		;;
+		--not-use-json)
+			_not_use_json='1'
+			_skip='1'
+			shift 1
 		;;
 		*)
 			_skip='1'
