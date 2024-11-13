@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.2.8'
+readonly _version='0.2.9'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -96,7 +96,8 @@ _print_help(){
 	-k   --key <bark_key>					Specify the device key to push to
 	-1   --title <title>					Specify the title to be push
 	-2   --body <body>					Specify the content to be push
-	-l   --level <active/timeSensitive/passive>		Specify the interruption level of the push
+	-l   --level <active/timeSensitive/passive/critical>	Specify the interruption level of the push
+	-lv  --level-volume <1/10>				Specify the volume of the sound used to push critical notifications
 	-b   --badge <number>					Specify the app badge (will overwrite the existing one)
 	-a   --autocopy <0/1>					Specify whether to enable auto-copy
 	-c   --copy <string>					Specify the content to be copied to the clipboard
@@ -142,7 +143,7 @@ _GET(){
 
 _POST(){
 	if [ -z "${_not_use_json}" ]; then
-		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
 	else
 		if [ -n "${_title}" ]; then
 			_parameter="title=$(_transform_url_encoded "${_title}")&body=$(_transform_url_encoded "${_body}")${_parameter}"
@@ -156,9 +157,9 @@ _POST(){
 _encryption(){
 	if [ -z "${_encryption_iv}" ]; then
 		_encryption_iv="$(_randnum '16')"
-		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')" --data-urlencode "iv=${_encryption_iv}"
+		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')" --data-urlencode "iv=${_encryption_iv}"
 	else
-		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
+		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
 	fi
 }
 
@@ -184,6 +185,10 @@ while [ "${#}" -gt '0' ]; do
 		-l|--level)
 			_level="${2}"
 			_parameter="${_parameter}&level=${2}"
+		;;
+		-lv|--level-volume)
+			_level_volume="${2}"
+			_parameter="${_parameter}&volume=${2}"
 		;;
 		-b|--badge)
 			_badge="${2}"
