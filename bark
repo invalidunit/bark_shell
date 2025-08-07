@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.2.9'
+readonly _version='0.3.0'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -121,6 +121,14 @@ Example:
 	echo 'test_body' | ${_command} -X POST -k key -1 test_title"
 }
 
+_print_info(){
+	echo "${_command} - Helps you build notifications to your bark app using curl
+
+Version: ${_version}
+User-Agent: ${_user_agent}
+Default use request method: ${_use_request}"
+}
+
 _transform_url_encoded(){
 	printf %s "${1}" | jq -s -R -r @uri
 }
@@ -143,7 +151,13 @@ _GET(){
 
 _POST(){
 	if [ -z "${_not_use_json}" ]; then
-		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+		_content="$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+		if [ -z "${_key}" ]; then
+			_content="$(printf '%s\n' "${_content}" | jq -c ".device_keys=${1}")"
+		else
+			_content="$(printf '%s\n' "${_content}" | jq -c --arg _key "${1}" '.device_key=$_key')"
+		fi
+		curl -s -L -X POST "https://${_server}/push" -H "User-Agent: ${_user_agent}" -H 'Content-Type: application/json; charset=utf-8' -d "${_content}"
 	else
 		if [ -n "${_title}" ]; then
 			_parameter="title=$(_transform_url_encoded "${_title}")&body=$(_transform_url_encoded "${_body}")${_parameter}"
@@ -155,11 +169,12 @@ _POST(){
 }
 
 _encryption(){
+	_content="$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
 	if [ -z "${_encryption_iv}" ]; then
 		_encryption_iv="$(_randnum '16')"
-		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')" --data-urlencode "iv=${_encryption_iv}"
+		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(printf '%s\n' "${_content}" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')" --data-urlencode "iv=${_encryption_iv}"
 	else
-		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(echo -n "$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
+		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(printf '%s\n' "${_content}" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')"
 	fi
 }
 
@@ -171,6 +186,10 @@ while [ "${#}" -gt '0' ]; do
 	case "${1}" in
 		-h)
 			_print_help
+			exit 0
+		;;
+		-v)
+			_print_info
 			exit 0
 		;;
 		-k|--key)
@@ -288,6 +307,7 @@ while [ "${#}" -gt '0' ]; do
 					;;
 				encryption)
 					_use_request='POST_encryption'
+					_use_custom_batch='1'
 					;;
 				*)
 					echo "${RED}Error: invalid request method${RESET}" 1>&2
@@ -298,6 +318,11 @@ while [ "${#}" -gt '0' ]; do
 		;;
 		--not-use-json)
 			_not_use_json='1'
+			_skip='1'
+			shift 1
+		;;
+		--use-custom-batch)
+			_use_custom_batch='1'
 			_skip='1'
 			shift 1
 		;;
@@ -338,22 +363,39 @@ case "${i_max}" in
 		esac
 		;;
 	*)
-		while [ "${i}" -le "${i_max}" ]; do
-			_key="$(echo "${_keys}" | awk -v i="$((i+1))" -F ',' '{print $i}')"
+		if [ "${_use_custom_batch}" = '1' ]; then
+			while [ "${i}" -le "${i_max}" ]; do
+				_key="$(printf '%s\n' "${_keys}" | awk -v i="$((i+1))" -F ',' '{print $i}')"
+				case "${_use_request}" in
+					GET)
+						echo "$(echo "${_key}" | sed -E 's/^(.{4}).*(.{4})$/\1xxxx\2/'): $(_GET "${_key}")" &
+						;;
+					POST)
+						echo "$(echo "${_key}" | sed -E 's/^(.{4}).*(.{4})$/\1xxxx\2/'): $(_POST "${_key}")" &
+						;;
+					POST_encryption)
+						echo "$(echo "${_key}" | sed -E 's/^(.{4}).*(.{4})$/\1xxxx\2/'): $(_encryption "${_key}")" &
+						;;
+				esac
+				unset _key
+				i="$((i+1))"
+			done
+			wait
+		else
+			_keys="$(echo "${_keys}" | sed 's#^,##')"
+			_keys="$(echo "${_keys}" | sed 's#,#","#g')"
+			_keys="[\"${_keys}\"]"
 			case "${_use_request}" in
 				GET)
-					echo "$(expr substr "${_key}" 1 4)xxxx$(echo "${_key}" | tail -c 5): $(_GET "${_key}")" &
+					echo '[x] Error: unsupport'
 					;;
 				POST)
-					echo "$(expr substr "${_key}" 1 4)xxxx$(echo "${_key}" | tail -c 5): $(_POST "${_key}")" &
+					_POST "${_keys}"
 					;;
 				POST_encryption)
-					echo "$(expr substr "${_key}" 1 4)xxxx$(echo "${_key}" | tail -c 5): $(_encryption "${_key}")" &
+					echo '[x] Error: unsupport'
 					;;
 			esac
-			unset _key
-			i="$((i+1))"
-		done
-		wait
+		fi
 		;;
 esac
