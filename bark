@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.3.1'
+readonly _version='0.3.2'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -152,7 +152,7 @@ _GET(){
 _POST(){
 	if [ -z "${_not_use_json}" ]; then
 		_content="$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
-		if [ -z "${_key}" ]; then
+		if [ "${_not_use_custom_batch}" = '1' ]; then
 			_content="$(printf '%s\n' "${_content}" | jq -c ".device_keys=${1}")"
 		else
 			_content="$(printf '%s\n' "${_content}" | jq -c --arg _key "${1}" '.device_key=$_key')"
