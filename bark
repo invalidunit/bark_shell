@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.3.0'
+readonly _version='0.3.1'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -307,7 +307,6 @@ while [ "${#}" -gt '0' ]; do
 					;;
 				encryption)
 					_use_request='POST_encryption'
-					_use_custom_batch='1'
 					;;
 				*)
 					echo "${RED}Error: invalid request method${RESET}" 1>&2
@@ -321,8 +320,8 @@ while [ "${#}" -gt '0' ]; do
 			_skip='1'
 			shift 1
 		;;
-		--use-custom-batch)
-			_use_custom_batch='1'
+		--not-use-custom-batch)
+			_not_use_custom_batch='1'
 			_skip='1'
 			shift 1
 		;;
@@ -363,7 +362,16 @@ case "${i_max}" in
 		esac
 		;;
 	*)
-		if [ "${_use_custom_batch}" = '1' ]; then
+		if [ "${_not_use_custom_batch}" = '1' ]; then
+			if [ "${_use_request}" = 'POST' ]; then
+				_keys="$(echo "${_keys}" | sed 's#^,##')"
+				_keys="$(echo "${_keys}" | sed 's#,#","#g')"
+				_keys="[\"${_keys}\"]"
+				_POST "$(printf '%s\n' "${_keys}" | jq -c)"
+			else
+				echo '[x] Error: unsupport'
+			fi
+		else
 			while [ "${i}" -le "${i_max}" ]; do
 				_key="$(printf '%s\n' "${_keys}" | awk -v i="$((i+1))" -F ',' '{print $i}')"
 				case "${_use_request}" in
@@ -381,21 +389,6 @@ case "${i_max}" in
 				i="$((i+1))"
 			done
 			wait
-		else
-			_keys="$(echo "${_keys}" | sed 's#^,##')"
-			_keys="$(echo "${_keys}" | sed 's#,#","#g')"
-			_keys="[\"${_keys}\"]"
-			case "${_use_request}" in
-				GET)
-					echo '[x] Error: unsupport'
-					;;
-				POST)
-					_POST "${_keys}"
-					;;
-				POST_encryption)
-					echo '[x] Error: unsupport'
-					;;
-			esac
 		fi
 		;;
 esac
