@@ -2,7 +2,7 @@
 
 
 readonly _command="${0##*/}"
-readonly _version='0.3.2'
+readonly _version='0.3.3'
 
 #give you some color see see
 RED=$(printf '\033[31m')
@@ -102,8 +102,10 @@ _print_help(){
 	-a   --autocopy <0/1>					Specify whether to enable auto-copy
 	-c   --copy <string>					Specify the content to be copied to the clipboard
 	-c2  --call <0/1>					Specify continuous ringing when sending push notifications
+	-d   --delete <0/1>					Specify the notification delete
 	-s   --sound <string>					Specify the custom ringtone
 	-i   --icon <url>					Specify the URL of the custom icon
+	-id   --id <string>					Specify the notification id
 	-g   --group <string>					Specify the notification group
 	-i2  --isarchive <0/1>					Specify whether to save to the app
 	-u   --url <url>					Specify the URL to jump to when clicked
@@ -114,15 +116,12 @@ _print_help(){
 	-ek  --encryption-key <key>				Specify the key used for encryption
 	-ei  --encryption-iv <iv>				Specify the iv used for encryption
 	--not-use-json						Specifies not use json when use POST
+	--not-use-custom-batch					Specifies not use custom batch when use POST
 Example:
 	${_command} -k key -1 test_title -2 test_body
 	echo 'test_body' | ${_command} -k key -1 test_title
 	${_command} -X GET -k key -1 test_title -2 test_body
-	echo 'test_body' | ${_command} -X POST -k key -1 test_title"
-}
-
-_print_info(){
-	echo "${_command} - Helps you build notifications to your bark app using curl
+	echo 'test_body' | ${_command} -X POST -k key -1 test_title
 
 Version: ${_version}
 User-Agent: ${_user_agent}
@@ -151,7 +150,7 @@ _GET(){
 
 _POST(){
 	if [ -z "${_not_use_json}" ]; then
-		_content="$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+		_content="$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -n "delete=${_delete}" -s "sound=${_sound}" -s "icon=${_icon}" -s "id=${_id}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
 		if [ "${_not_use_custom_batch}" = '1' ]; then
 			_content="$(printf '%s\n' "${_content}" | jq -c ".device_keys=${1}")"
 		else
@@ -169,7 +168,7 @@ _POST(){
 }
 
 _encryption(){
-	_content="$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -s "sound=${_sound}" -s "icon=${_icon}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
+	_content="$(jo -n -- -s "title=${_title}" -s "body=${_body}" -s "level=${_level}" -n "volume=${_level_volume}" -n "badge=${_badge}" -n "autoCopy=${_autocopy}" -s "copy=${_copy}" -n "call=${_call}" -n "delete=${_delete}" -s "sound=${_sound}" -s "icon=${_icon}" -s "id=${_id}" -s "group=${_group}" -n "isArchive=${_isarchive}" -s "url=${_url}")"
 	if [ -z "${_encryption_iv}" ]; then
 		_encryption_iv="$(_randnum '16')"
 		curl -s -L -X POST "https://${_server}/${1}" -H "User-Agent: ${_user_agent}" --data-urlencode "ciphertext=$(printf '%s\n' "${_content}" | openssl enc "-${_encryption_algorithm}-${_encryption_mode}" -K "$(printf "${_encryption_key}" | xxd -ps -c 200)" -iv "$(printf "${_encryption_iv}" | xxd -ps -c 200)" | base64 | tr -d '\n')" --data-urlencode "iv=${_encryption_iv}"
@@ -186,10 +185,6 @@ while [ "${#}" -gt '0' ]; do
 	case "${1}" in
 		-h)
 			_print_help
-			exit 0
-		;;
-		-v)
-			_print_info
 			exit 0
 		;;
 		-k|--key)
@@ -225,6 +220,10 @@ while [ "${#}" -gt '0' ]; do
 			_call="${2}"
 			_parameter="${_parameter}&call=${2}"
 		;;
+		-d|--delete)
+			_delete="${2}"
+			_parameter="${_parameter}&delete=${2}"
+		;;
 		-s|--sound)
 			_sound="${2}"
 			_parameter="${_parameter}&sound=${2}"
@@ -240,6 +239,10 @@ while [ "${#}" -gt '0' ]; do
 		-i2|--isarchive)
 			_isarchive="${2}"
 			_parameter="${_parameter}&isArchive=${2}"
+		;;
+		-id|--id)
+			_id="${2}"
+			_parameter="${_parameter}&id=${2}"
 		;;
 		-u|--url)
 			_url="${2}"
